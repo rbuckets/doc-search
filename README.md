@@ -1,2 +1,2 @@
 # doc-search
-AI-powered chatbot that you can feed documents to analyze.
+AI-powered chatbot that analyzes your personal documents.
