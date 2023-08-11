@@ -5,10 +5,8 @@ from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
-from langchain.chains import ConversationalRetrievalChain
 from langchain.agents.agent_toolkits import create_retriever_tool
 from langchain.agents import load_tools
 from langchain.agents import ZeroShotAgent, AgentExecutor
@@ -34,14 +32,14 @@ embeddings = OpenAIEmbeddings()
 db = FAISS.from_documents(chunks, embeddings)
 retriever = db.as_retriever()
 
-# Create paper-searching tool (called tool_papers)
+# Create paper-searching tool (called tool_paper)
 tool_paper = create_retriever_tool(
     retriever,
     "search_papers",
     "Searches through the papers for information regarding the prompt. If you've looked through all the papers and need additional info, then use the search tool as a last resort."
 )
 
-# Create search tool (called tool_search)
+# create toolkit (with search tool)
 toolkit = [
     tool_paper,
     load_tools(["serpapi"],
@@ -50,6 +48,7 @@ toolkit = [
 ]
 toolkit[1].description = "A search engine. Used when you need to look up outside information not provided in the papers. Input should be a search query. Only use if you searched through the papers and didn't find any information."
 
+# writing prompt
 prefix = """Have a conversation with a human, answering it's questions about papers. You have access to the following tools:"""
 suffix = """Gather information found in the papers using the search_papers tool, then, if needed, look up additional information using the Search tool. Begin!"
 
@@ -57,6 +56,7 @@ suffix = """Gather information found in the papers using the search_papers tool,
 Question: {input}
 {agent_scratchpad}"""
 
+# create prompt and memory
 prompt = ZeroShotAgent.create_prompt(
     tools=toolkit,
     prefix=prefix,
@@ -65,6 +65,7 @@ prompt = ZeroShotAgent.create_prompt(
 )
 memory = ConversationBufferMemory(memory_key="chat_history")
 
+# create agent and agent chain
 llm_chain = LLMChain(llm=OpenAI(temperature=0.1), prompt=prompt)
 agent = ZeroShotAgent(llm_chain=llm_chain,
                       tools=toolkit,
@@ -74,6 +75,7 @@ agent_chain = AgentExecutor.from_agent_and_tools(
     agent=agent, tools=toolkit, verbose=True, memory=memory
 )
 
+# instantiate chatbot
 print("Welcome to the Transformers chatbot! Type 'exit' to stop.")
 
 while True:
@@ -91,6 +93,3 @@ while True:
     print(f'Chatbot: {result["output"]}')
 
 memory.clear()
-
-# input_box = widgets.Text(placeholder='Please enter your question:')
-# input_box.observe(on_submit, 'value')
