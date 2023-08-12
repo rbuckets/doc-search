@@ -15,28 +15,42 @@ from langchain import LLMChain
 
 os.environ["OPENAI_API_KEY"] = constants.OPENAI_KEY
 
-# Support for one pdf document: Replace path
-loader = PyPDFLoader("./data/attention.pdf")
+dir = 'data'
+chunks = []
+
 text_splitter = RecursiveCharacterTextSplitter(
     # Set a really small chunk size, just to show.
     chunk_size = 512,
     chunk_overlap  = 20,
 )
-chunks = loader.load_and_split(text_splitter)
+
+# Go data folder
+for file in os.listdir(dir):
+  try:
+      # Load up the file as a doc and split
+      loader = PyPDFLoader(os.path.join(dir, file))
+      print("hi")
+      chunks.extend(loader.load_and_split(text_splitter))
+  except Exception as e:
+      print("Could not load files: ", e)
+
+# chunks = loader.load_and_split(text_splitter)
 
 # Create embedding model and llm
 llm = ChatOpenAI(temperature=0.1)
 embeddings = OpenAIEmbeddings()
 
+print(len(chunks))
+
 # Create vector database and retriever
 db = FAISS.from_documents(chunks, embeddings)
-retriever = db.as_retriever()
+retriever = db.as_retriever(search_kwargs={"k": 5})
 
 # Create paper-searching tool (called tool_paper)
 tool_paper = create_retriever_tool(
     retriever,
     "search_papers",
-    "Searches through the papers for information regarding the prompt. If you've looked through all the papers and need additional info, then use the search tool as a last resort."
+    "Searches through the papers for information regarding the prompt."
 )
 
 # create toolkit (with search tool)
@@ -46,11 +60,11 @@ toolkit = [
                llm=llm,
                serpapi_api_key="fe705be3a03c2fdfb40aa28344a6259a02f35437e0e74fad6c6d93d6e34c71fa")[0]
 ]
-toolkit[1].description = "A search engine. Used when you need to look up outside information not provided in the papers. Input should be a search query. Only use if you searched through the papers and didn't find any information."
+toolkit[1].description = "A search engine. Used when you need to look up outside information not provided in the papers. Input should be a search query. Don't use this tool unless it's absolutely necessary."
 
 # writing prompt
 prefix = """Have a conversation with a human, answering it's questions about papers. You have access to the following tools:"""
-suffix = """Gather information found in the papers using the search_papers tool, then, if needed, look up additional information using the Search tool. Begin!"
+suffix = """Gather information found in the papers using the search_papers tool. Only if you desperately need it, look up additional information using the Search tool. Begin!"
 
 {chat_history}
 Question: {input}
