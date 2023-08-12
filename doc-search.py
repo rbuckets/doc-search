@@ -29,7 +29,6 @@ for file in os.listdir(dir):
   try:
       # Load up the file as a doc and split
       loader = PyPDFLoader(os.path.join(dir, file))
-      print("hi")
       chunks.extend(loader.load_and_split(text_splitter))
   except Exception as e:
       print("Could not load files: ", e)
@@ -39,8 +38,6 @@ for file in os.listdir(dir):
 # Create embedding model and llm
 llm = ChatOpenAI(temperature=0.1)
 embeddings = OpenAIEmbeddings()
-
-print(len(chunks))
 
 # Create vector database and retriever
 db = FAISS.from_documents(chunks, embeddings)
@@ -64,7 +61,7 @@ toolkit[1].description = "A search engine. Used when you need to look up outside
 
 # writing prompt
 prefix = """Have a conversation with a human, answering it's questions about papers. You have access to the following tools:"""
-suffix = """Gather information found in the papers using the search_papers tool. Only if you desperately need it, look up additional information using the Search tool. Begin!"
+suffix = """Gather information found in the papers using the search_papers tool. Always search through the papers first. Only if you desperately need it, look up additional information using the Search tool. Begin!"
 
 {chat_history}
 Question: {input}
