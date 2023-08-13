@@ -1,6 +1,8 @@
 import constants
 
 import os
+import sys
+
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
@@ -11,9 +13,14 @@ from langchain.agents.agent_toolkits import create_retriever_tool
 from langchain.agents import load_tools
 from langchain.agents import ZeroShotAgent, AgentExecutor
 from langchain.memory import ConversationBufferMemory
-from langchain import LLMChain
+from langchain import PromptTemplate, LLMChain, HuggingFaceHub
+
+from getpass import getpass
+
+HUGGINGFACEHUB_API_TOKEN = getpass()
 
 os.environ["OPENAI_API_KEY"] = constants.OPENAI_KEY
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = HUGGINGFACEHUB_API_TOKEN
 
 dir = 'data'
 chunks = []
@@ -36,7 +43,16 @@ for file in os.listdir(dir):
 # chunks = loader.load_and_split(text_splitter)
 
 # Create embedding model and llm
-llm = ChatOpenAI(temperature=0.1)
+repo_id = "tiiuae/falcon-7b"
+llm_choice = sys.argv[1]
+
+if llm_choice == "open":
+    llm =HuggingFaceHub(
+        repo_id=repo_id, model_kwargs={"temperature": 0.1}
+    )
+else:
+    llm = OpenAI(temperature=0.1)
+
 embeddings = OpenAIEmbeddings()
 
 # Create vector database and retriever
@@ -77,7 +93,7 @@ prompt = ZeroShotAgent.create_prompt(
 memory = ConversationBufferMemory(memory_key="chat_history")
 
 # create agent and agent chain
-llm_chain = LLMChain(llm=OpenAI(temperature=0.1), prompt=prompt)
+llm_chain = LLMChain(llm=llm, prompt=prompt)
 agent = ZeroShotAgent(llm_chain=llm_chain,
                       tools=toolkit,
                       agent="chat-conversational-react-description",
