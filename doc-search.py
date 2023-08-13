@@ -48,7 +48,7 @@ for file in os.listdir(dir):
 # Create embedding model and llm
 repo_id = "tiiuae/falcon-7b"
 
-if len(sys.argv) > 1 and sys.argv[1] == "open":
+if "open" in sys.argv:
     llm =HuggingFaceHub(
         repo_id=repo_id, model_kwargs={"temperature": 0.1}
     )
@@ -64,7 +64,11 @@ if os.environ.get("PINECONE_API_KEY"):
     )
     index_name = "langchain1"
     index = pinecone.Index(index_name)
-    db = Pinecone.from_texts([t.page_content for t in chunks], embeddings, index_name=index_name)
+
+    if "load" in sys.argv:
+        db = Pinecone.from_texts([t.page_content for t in chunks], embeddings, index_name=index_name)
+    else:
+        db = Pinecone(index, embeddings.embed_query, "text")
 else:
     # Create vector database and retriever
     db = FAISS.from_documents(chunks, embeddings)
@@ -120,8 +124,6 @@ print("Welcome to the Transformers chatbot! Type 'exit' to stop.")
 while True:
     query = input("Please enter your question: ")
 
-    print(type(query))
-
     if query.lower() == 'exit':
         print("Thank you for using the State of the Union chatbot!")
         break
@@ -132,6 +134,3 @@ while True:
     print(f'Chatbot: {result["output"]}')
 
 memory.clear()
-
-if os.environ.get("PINECONE_API_KEY"):
-    delete_response = index.delete(delete_all=True)
