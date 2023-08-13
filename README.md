@@ -5,6 +5,10 @@ AI-powered chatbot that analyzes your personal documents.
 Run `python3 doc-search.py` in the CLI to run with OpenAI gpt-3.5-turbo model. Include `open` as a command line argument to run with open source model.
 Currently only supports HuggingFaceHub models, and it doesn't work very well. Working on that.
 
+### Loading Data
+If you're storing embeddings locally, the application will automatically load all pdf files from the `data` directory.<br>
+If you're using Pinecone to store vector embeddings, include `load` as a command line argument to load all pdf files from the `data` directory. Otherwise, the application will just read from existing data in the Pinecone index.
+
 ## API Keys
 Add API keys in a `constants.py` file in the root directory in the following format:
 
@@ -20,7 +24,3 @@ OpenAI: https://platform.openai.com/account/api-keys<br>
 SerpAPI: https://serpapi.com/manage-api-key<br>
 Huggingface: https://huggingface.co/settings/tokens<br>
 Pinecone: https://www.pinecone.io/<br>
-
-## Loading Data
-If you're storing embeddings locally, the application will automatically load all pdf files from the `data` directory.<br>
-If you're using Pinecone to store vector embeddings, include `load` as a command line argument to load all pdf files from the `data` directory. Otherwise, the application will just read from existing data in the Pinecone index.
