@@ -6,7 +6,7 @@ import sys
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import FAISS, Pinecone
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_toolkits import create_retriever_tool
@@ -14,13 +14,16 @@ from langchain.agents import load_tools
 from langchain.agents import ZeroShotAgent, AgentExecutor
 from langchain.memory import ConversationBufferMemory
 from langchain import PromptTemplate, LLMChain, HuggingFaceHub
+import pinecone
 
 from getpass import getpass
 
-HUGGINGFACEHUB_API_TOKEN = getpass()
-
 os.environ["OPENAI_API_KEY"] = constants.OPENAI_KEY
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = HUGGINGFACEHUB_API_TOKEN
+
+if hasattr(constants, 'HUGGINGFACEHUB_KEY'):
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = constants.HUGGINGFACEHUB_KEY
+if hasattr(constants, 'PINECONE_KEY'):
+    os.environ["PINECONE_API_KEY"] = constants.PINECONE_KEY
 
 dir = 'data'
 chunks = []
@@ -44,9 +47,8 @@ for file in os.listdir(dir):
 
 # Create embedding model and llm
 repo_id = "tiiuae/falcon-7b"
-llm_choice = sys.argv[1]
 
-if llm_choice == "open":
+if len(sys.argv) > 1 and sys.argv[1] == "open":
     llm =HuggingFaceHub(
         repo_id=repo_id, model_kwargs={"temperature": 0.1}
     )
@@ -55,8 +57,18 @@ else:
 
 embeddings = OpenAIEmbeddings()
 
-# Create vector database and retriever
-db = FAISS.from_documents(chunks, embeddings)
+if os.environ.get("PINECONE_API_KEY"):
+    pinecone.init(
+        api_key=os.environ["PINECONE_API_KEY"],
+        environment="us-west4-gcp-free"
+    )
+    index_name = "langchain1"
+    index = pinecone.Index(index_name)
+    db = Pinecone.from_texts([t.page_content for t in chunks], embeddings, index_name=index_name)
+else:
+    # Create vector database and retriever
+    db = FAISS.from_documents(chunks, embeddings)
+
 retriever = db.as_retriever(search_kwargs={"k": 5})
 
 # Create paper-searching tool (called tool_paper)
@@ -120,3 +132,6 @@ while True:
     print(f'Chatbot: {result["output"]}')
 
 memory.clear()
+
+if os.environ.get("PINECONE_API_KEY"):
+    delete_response = index.delete(delete_all=True)
