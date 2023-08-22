@@ -3,7 +3,7 @@ import constants
 import os
 import sys
 
-from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import PyPDFLoader, DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS, Pinecone
@@ -15,6 +15,7 @@ from langchain.agents import ZeroShotAgent, AgentExecutor
 from langchain.memory import ConversationBufferMemory
 from langchain import PromptTemplate, LLMChain, HuggingFaceHub
 import pinecone
+import prompts
 
 from getpass import getpass
 
@@ -35,15 +36,18 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 # Go data folder
-for file in os.listdir(dir):
-  try:
-      # Load up the file as a doc and split
-      loader = PyPDFLoader(os.path.join(dir, file))
-      chunks.extend(loader.load_and_split(text_splitter))
-  except Exception as e:
-      print("Could not load files: ", e)
 
-# chunks = loader.load_and_split(text_splitter)
+loader = DirectoryLoader(dir, glob="**/*.txt", loader_cls=TextLoader, silent_errors=True)
+
+# for file in os.listdir(dir):
+#   try:
+#       # Load up the file as a doc and split
+#       loader = PyPDFLoader(os.path.join(dir, file))
+#       chunks.extend(loader.load_and_split(text_splitter))
+#   except Exception as e:
+#       print("Could not load files: ", e)
+
+chunks = loader.load_and_split(text_splitter)
 
 # Create embedding model and llm
 repo_id = "tiiuae/falcon-7b"
@@ -78,8 +82,8 @@ retriever = db.as_retriever(search_kwargs={"k": 5})
 # Create paper-searching tool (called tool_paper)
 tool_paper = create_retriever_tool(
     retriever,
-    "search_papers",
-    "Searches through the papers for information regarding the prompt."
+    name="search_papers",
+    description=prompts.DOCSEARCH_DESCRIPTION,
 )
 
 # create toolkit (with search tool)
@@ -89,15 +93,11 @@ toolkit = [
                llm=llm,
                serpapi_api_key="fe705be3a03c2fdfb40aa28344a6259a02f35437e0e74fad6c6d93d6e34c71fa")[0]
 ]
-toolkit[1].description = "A search engine. Used when you need to look up outside information not provided in the papers. Input should be a search query. Don't use this tool unless it's absolutely necessary."
+toolkit[1].description = prompts.SEARCH_DESCRIPTION
 
 # writing prompt
-prefix = """Have a conversation with a human, answering it's questions about papers. You have access to the following tools:"""
-suffix = """Gather information found in the papers using the search_papers tool. Always search through the papers first. Only if you desperately need it, look up additional information using the Search tool. Begin!"
-
-{chat_history}
-Question: {input}
-{agent_scratchpad}"""
+prefix = prompts.AGENT_PROMPT_PREFIX
+suffix = prompts.AGENT_PROMPT_SUFFIX
 
 # create prompt and memory
 prompt = ZeroShotAgent.create_prompt(
